@@ -107,7 +107,7 @@ cd google_to_amazon
 cp -pr "$PROJECTDIR/"* .
 
 echo "- searching for Android market links"
-FILES_TO_UPDATE=$( grep "market://" src/* -Rl );
+FILES_TO_UPDATE=$( grep "market://" src/* -Rl || true);
 for fn in $FILES_TO_UPDATE; do
   echo
   echo "Updating $fn"
