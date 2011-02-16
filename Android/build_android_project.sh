@@ -116,12 +116,22 @@ for fn in $FILES_TO_UPDATE; do
   rm $fn.bak
 done
 
+echo
+
+# Make sure all links were updated and none left (because of other format, etc)
+# If links are left over, fail!
+FILES_TO_UPDATE=$( grep "market://" src/* -Rl || true )
+if [ $FILES_TO_UPDATE ]; then
+  echo "Error: Could not convert all market:// links to amazon market links. Files:"
+  grep "market://" src/* -RHn
+  exit 1
+fi
+
 # Amazon market needs only unsigned apk's. remove build.properties
 if [ -f build.properties ]; then
   rm build.properties
 fi
 
-echo
 echo "- building amazon apk version"
 ant clean release
 
