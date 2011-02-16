@@ -27,8 +27,19 @@
 # Date: Feb, 2011
 #
 
+set -e # make script fail if one command fails
+
 DATE=$( date +"%Y-%m-%d_%H:%M" )
 
+# OSX compatibility (Joe Hensche)
+UNAME=$(uname)
+if [ ${UNAME} = "Linux" ]; then
+  CMD_SED="sed --in-place=.bak"
+elif [ ${UNAME} = "Darwin" ]; then
+  CMD_SED="sed -i .bak"
+fi
+
+# Check for argument
 if [ $# -lt 1 ]; then
   echo "Use: $0 PROJECT-DIR"
   exit 1
@@ -65,11 +76,12 @@ cd "$PROJECTDIR"
 ant clean release
 
 rm bin/*-unaligned.apk
+
 # Append date to output apk's
 cd bin
 FILES=$( ls *.apk )
 for fn in $FILES; do
-  FN_NEW=$( echo $fn | sed "s/.apk/-google-$DATE.apk/g" )
+  FN_NEW=$( echo $fn | sed "s/.apk/-google-$DATE.apk/g" ) # $CMD_SED only works on files
   mv $fn $FN_NEW
 done
 
@@ -99,14 +111,15 @@ FILES_TO_UPDATE=$( grep "market://" src/* -Rl );
 for fn in $FILES_TO_UPDATE; do
   echo
   echo "Updating $fn"
-  cp "$fn" "$fn-orig"
-  sed 's/market:\/\/details?id=/http:\/\/www.amazon.com\/gp\/mas\/dl\/android\//g' $fn-orig > $fn
-  diff $fn-orig $fn
-  rm $fn-orig
+  $CMD_SED 's/market:\/\/details?id=/http:\/\/www.amazon.com\/gp\/mas\/dl\/android\//g' $fn 
+  diff $fn.bak $fn || true # diff returns 1 if files are not the same (catch with || false)
+  rm $fn.bak
 done
 
 # Amazon market needs only unsigned apk's. remove build.properties
-rm build.properties
+if [ -f build.properties ]; then
+  rm build.properties
+fi
 
 echo
 echo "- building amazon apk version"
