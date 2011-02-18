@@ -39,6 +39,12 @@ elif [ ${UNAME} = "Darwin" ]; then
   CMD_SED="sed -i .bak"
 fi
 
+CMD_ANT=ant
+if [ ${ANT_HOME} ]; then
+  # On jenkins use this ant
+  CMD_ANT=${ANT_HOME}/bin/ant
+fi
+
 # Check for argument
 if [ $# -lt 1 ]; then
   echo "Use: $0 PROJECT-DIR"
@@ -74,7 +80,7 @@ fi
 # build normal android version (debug)
 # ====================================
 cd "$PROJECTDIR"
-ant clean release
+$CMD_ANT clean release
 
 # try to delete unaligned apks, if not found don't fail script
 rm bin/*-unaligned.apk 2>/dev/null || true
@@ -132,7 +138,7 @@ if [ -f build.properties ]; then
 fi
 
 echo "- building amazon apk version"
-ant clean release
+$CMD_ANT clean release
 
 # try to delete unaligned apks, if not found don't fail script
 rm bin/*-unaligned.apk 2>/dev/null || true
