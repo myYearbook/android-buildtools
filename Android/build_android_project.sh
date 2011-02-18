@@ -47,7 +47,7 @@ fi
 
 # readlink converts relative to absolute paths
 PROJECTDIR=$( readlink -f "$1" )
-
+echo $PROJECTDIR
 # make sure default.properties file is there (android min-sdk)
 if [ ! -f "$PROJECTDIR/default.properties" ]; then
   echo "Error: $PROJECTDIR/default.properties not found. Is this the directory"
@@ -79,11 +79,13 @@ ant clean release
 rm bin/*-unaligned.apk 2>/dev/null || true
 
 # Append date to output apk's
+# Cannot do it with ls because it breaks with whitespaces in the filename
 cd bin
-FILES=$( ls *.apk )
-for fn in $FILES; do
-  FN_NEW=$( echo $fn | sed "s/.apk/-google-$DATE.apk/g" ) # $CMD_SED only works on files
-  mv $fn $FN_NEW
+find ./ -name "*.apk" -print0 | while read -d $'\0' fn
+do
+  FN_NEW=$( echo "$fn" | sed "s/.apk/-google-$DATE.apk/g" ) # $CMD_SED only works on files
+  echo "mv $fn $FN_NEW"
+  mv "$fn" "$FN_NEW"
 done
 
 # =========================================
@@ -140,11 +142,13 @@ ant clean release
 rm bin/*-unaligned.apk 2>/dev/null || true
 
 # Append date to output apk's
+# Cannot do it with ls because it breaks with whitespaces in the filename
 cd bin
-FILES=$( ls *.apk )
-for fn in $FILES; do
-  FN_NEW=$( echo $fn | sed "s/.apk/-amazon-$DATE.apk/g" )
-  mv $fn "$PROJECTDIR/bin/$FN_NEW"
+find ./ -name "*.apk" -print0 | while read -d $'\0' fn
+do
+  FN_NEW=$( echo "$fn" | sed "s/.apk/-amazon-$DATE.apk/g" )
+  echo "mv $fn $FN_NEW"
+  mv "$fn" "$PROJECTDIR/bin/$FN_NEW"
 done
 
 # cleanup temporary files created by 'android update project'
