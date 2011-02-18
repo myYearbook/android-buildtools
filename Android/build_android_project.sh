@@ -84,7 +84,6 @@ cd bin
 find ./ -name "*.apk" -print0 | while read -d $'\0' fn
 do
   FN_NEW=$( echo "$fn" | sed "s/.apk/-google-$DATE.apk/g" ) # $CMD_SED only works on files
-  echo "mv $fn $FN_NEW"
   mv "$fn" "$FN_NEW"
 done
 
@@ -147,7 +146,6 @@ cd bin
 find ./ -name "*.apk" -print0 | while read -d $'\0' fn
 do
   FN_NEW=$( echo "$fn" | sed "s/.apk/-amazon-$DATE.apk/g" )
-  echo "mv $fn $FN_NEW"
   mv "$fn" "$PROJECTDIR/bin/$FN_NEW"
 done
 
