@@ -114,6 +114,9 @@ cd $TMPDIR
 echo "- copy project"
 cp -pr "$PROJECTDIR/"* .
 
+# ant clean removes bin/ and gen/. Do before replacing market links
+$CMD_ANT clean
+
 echo "- searching for Android market links"
 FILES_TO_UPDATE=$( grep "market://" * -Rl || true);
 for fn in $FILES_TO_UPDATE; do
@@ -141,7 +144,7 @@ if [ -f build.properties ]; then
 fi
 
 echo "- building amazon apk version"
-$CMD_ANT clean release
+$CMD_ANT release
 
 # try to delete unaligned apks, if not found don't fail script
 rm bin/*-unaligned.apk 2>/dev/null || true
