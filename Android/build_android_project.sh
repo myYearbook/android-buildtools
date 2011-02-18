@@ -72,8 +72,7 @@ if [ ! -f "$PROJECTDIR/build.xml" ]; then
     android update project -p "$PROJECTDIR"
     BUILDXML_CREATED=1
   else
-    echo "Error: $PROJECTDIR/build.xml not found." 
-    echo "       Cannot build, please add this file to version control."
+    echo "Error: Could not update project properties, command 'android' not found."
     exit 1
   fi
 fi
