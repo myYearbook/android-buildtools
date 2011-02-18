@@ -26,6 +26,9 @@
 # Author: Chris Hager
 # Date: Feb, 2011
 #
+# Todo:
+# [ ] Amazon build: run zipalign (unsigned packages are not auto-aligned
+#
 
 set -e # make script fail if one command fails
 
@@ -112,7 +115,7 @@ echo "- copy project"
 cp -pr "$PROJECTDIR/"* .
 
 echo "- searching for Android market links"
-FILES_TO_UPDATE=$( grep "market://" src/* -Rl || true);
+FILES_TO_UPDATE=$( grep "market://" * -Rl || true);
 for fn in $FILES_TO_UPDATE; do
   echo
   echo "Updating $fn"
@@ -125,7 +128,7 @@ echo
 
 # Make sure all links were updated and none left (because of other format, etc)
 # If links are left over, fail!
-FILES_TO_UPDATE=$( grep "market://" src/* -Rl || true )
+FILES_TO_UPDATE=$( grep "market://" * -Rl || true )
 if [ $FILES_TO_UPDATE ]; then
   echo "Error: Could not convert all market:// links to amazon market links. Files:"
   grep "market://" src/* -RHn
