@@ -75,7 +75,8 @@ fi
 cd "$PROJECTDIR"
 ant clean release
 
-rm bin/*-unaligned.apk
+# try to delete unaligned apks, if not found don't fail script
+rm bin/*-unaligned.apk 2>/dev/null || true
 
 # Append date to output apk's
 cd bin
@@ -134,6 +135,9 @@ fi
 
 echo "- building amazon apk version"
 ant clean release
+
+# try to delete unaligned apks, if not found don't fail script
+rm bin/*-unaligned.apk 2>/dev/null || true
 
 # Append date to output apk's
 cd bin
