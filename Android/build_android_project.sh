@@ -47,7 +47,8 @@ fi
 
 # readlink converts relative to absolute paths
 PROJECTDIR=$( readlink -f "$1" )
-echo $PROJECTDIR
+TMPDIR="/tmp/google_to_amazon/$RANDOM"
+
 # make sure default.properties file is there (android min-sdk)
 if [ ! -f "$PROJECTDIR/default.properties" ]; then
   echo "Error: $PROJECTDIR/default.properties not found. Is this the directory"
@@ -94,18 +95,14 @@ echo
 echo "--------------------------"
 echo "Google-to-Amazon Converter"
 echo "--------------------------"
-echo "- working dir: /tmp/google_to_amazon/"
+echo "- working dir: $TMPDIR"
 
 # Clean temp dir
-echo "- clean"
-cd /tmp
-if [ -d google_to_amazon ]; then
-  rm -rf google_to_amazon
-fi
+echo "- change to temporary directory"
+mkdir -p $TMPDIR
+cd $TMPDIR
 
 echo "- copy project"
-mkdir google_to_amazon
-cd google_to_amazon
 cp -pr "$PROJECTDIR/"* .
 
 echo "- searching for Android market links"
@@ -153,5 +150,7 @@ done
 if [ $BUILDXML_CREATED ]; then
   rm "$PROJECTDIR/build.xml"
   rm "$PROJECTDIR/proguard.cfg"
-  echo "cleaned"
 fi
+
+# cleanup temporary directory
+rm -rf $TMPDIR
