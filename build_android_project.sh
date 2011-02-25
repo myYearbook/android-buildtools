@@ -1,15 +1,41 @@
 #!/bin/sh
 
+# This script can be invoked manually or by a jenkins job, and performs the
+# the full Android build process with 'ant' for internal releases (signed with
+# debug key) or external ones (signed with release key for Google, unsigned
+# and converted market:// links for submission to Amazon).
 #
-# This script is invoked by jenkins/hudson and performs the
-# full Android build process (jenkins calls 'android update
-# project' before invokind this script):
+# Usage
+#
+#   build_android_project.sh <ACTION> <WORKSPACE_DIR> [<RELATIVE_PROJECT_PATH>]
+#
+# Actions
+#
+#   --debug ..... build signed apk with debug key 
+#   --release ... build signed apk with release key for google, unsigned apk  
+#                 for amazon (with replaces market links) 
+#
+# Example Usage
+#
+#   # build project in current directory
+#   build_android_project.sh --release .
+#
+#   # build project in ./source/ which references library in ./lib1/
+#   build_android_project.sh --release . source
+#
+# Overview
 #
 #   1. checks that the Android project has all files in place
 #   2. builds the current version
-#   3. runs the amazon converter script and build for amazon
-#   4. appends date to filenames
-#   5. move all apk's into orig_dir/bin for hudson to archive
+#   3. after building, the apk's are renamed to include 'debug' or 'release'
+#      and 'Google' or 'Amazon' as well as the date, and can be found in bin/
+#
+# Amazon Market
+#
+#   Requires that all market:// links are replaced with links to Amazon's
+#   website. This script automatically replaces all links and exits with
+#   an error if there were links that couldn't be converted (which would
+#   cause Amazon to reject the app submission.
 #
 # Required files:
 #
@@ -23,24 +49,14 @@
 #   build.xml files are ignored and replaced on hudson with the
 #   most current one from 'android update project'
 #
+# Author
 #
-# Usage:
+#   Chris Hager (chris@metachris.org)
 #
-#   build_android_project.sh OPTIONS <WORKSPACE_DIR> [<RELATIVE_PROJECT_PATH>]
+# Date
 #
-# Options:
+#   Feb, 2011
 #
-#   -debug ..... build signed with debug key 
-#   -release ... build signed with release key for google, unsigned for 
-#                amazon with replaces market links 
-#
-# Author: Chris Hager
-# Date: Feb, 2011
-#
-# Todo:
-# [ ] Amazon build: run zipalign (unsigned packages are not auto-aligned)
-#
-
 set -e  # make script fail if one command fails
 
 DATE=$( date +"%Y-%m-%d_%H:%M" )
@@ -60,8 +76,10 @@ if [ ${ANT_HOME} ]; then
 fi
 
 # Check for argument
-if [ $# -lt 2 ]; then
-  echo "Use: $0 OPTIONS <WORKSPACE_DIR> [<RELATIVE_PROJECT_DIR>]"
+if [ $# -lt 2 -o $1 != "--debug" -a $1 != "--release" ]; then
+  echo "Use: $0 <ACTION> <WORKSPACE_DIR> [<RELATIVE_PROJECT_DIR>]"
+  echo "Actions:\n    --debug ..... build apk signed with debug key"
+  echo "    --release ... build release apk's for Google and Amazon"
   exit 1
 fi
 
@@ -106,7 +124,7 @@ fi
 # ====================================
 # build normal android version (debug)
 # ====================================
-if [ $1 == "--debug" ]; then
+if [ "$1" = "--debug" ]; then
     cd "$PROJECTDIR"
     $CMD_ANT clean debug
     
@@ -123,10 +141,11 @@ if [ $1 == "--debug" ]; then
     done
 fi
 
-# =============================
-# build release android version
-# =============================
-if [ $1 == "--release" ]; then
+# ======================
+# build release versions
+# ======================
+if [ "$1" = "--release" ]; then
+    # Android first
     cd "$PROJECTDIR"
     $CMD_ANT clean release
     
