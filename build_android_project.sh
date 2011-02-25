@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # This script can be invoked manually or by a jenkins job, and performs the
 # the full Android build process with 'ant' for internal releases (signed with
@@ -78,7 +78,8 @@ fi
 # Check for argument
 if [ $# -lt 2 -o $1 != "--debug" -a $1 != "--release" ]; then
   echo "Use: $0 <ACTION> <WORKSPACE_DIR> [<RELATIVE_PROJECT_DIR>]"
-  echo "Actions:\n    --debug ..... build apk signed with debug key"
+  echo "Actions:"
+  echo "    --debug ..... build apk signed with debug key"
   echo "    --release ... build release apk's for Google and Amazon"
   exit 1
 fi
@@ -95,11 +96,8 @@ if [ -n "$3" ]; then
   TMP_PROJECTDIR=$( readlink -f "$TMP_WORKSPACEDIR/$3" )
 fi
 
-echo "workspace: $WORKSPACEDIR"
-echo "project: $PROJECTDIR"
-echo "workspace_tmp: $TMP_WORKSPACEDIR"
-echo "project_tmp: $TMP_PROJECTDIR"
-echo
+echo "workspace directory: $WORKSPACEDIR"
+echo "project directory: $PROJECTDIR"
 
 # make sure default.properties file is there (android min-sdk)
 if [ ! -f "$PROJECTDIR/default.properties" ]; then
@@ -126,6 +124,7 @@ fi
 # ====================================
 if [ "$1" = "--debug" ]; then
     cd "$PROJECTDIR"
+    echo "\nBuilding debug apk..."
     $CMD_ANT clean debug
     
     # try to delete unaligned apks, if not found don't fail script
@@ -145,13 +144,27 @@ fi
 # build release versions
 # ======================
 if [ "$1" = "--release" ]; then
+    echo "workspace_tmp: $TMP_WORKSPACEDIR"
+    echo "project_tmp: $TMP_PROJECTDIR"
+
+    echo
+    echo "-------------------------------"
+    echo "Building apk for Android market"
+    echo "-------------------------------"
+    echo
+    
     # Android first
     cd "$PROJECTDIR"
     $CMD_ANT clean release
     
     # try to delete unaligned apks, if not found don't fail script
     rm bin/*-unaligned.apk 2>/dev/null || true
-    rm bin/*-unsigned.apk 2>/dev/null || true
+    
+    # if signing key infos in build.properties we now have a release apk
+    # and delete the unsigned one, else we keep the unsigned apk
+    if [ -n "$( ls bin/*release*.apk 2>/dev/null || true )" ]; then
+        rm bin/*-unsigned.apk 2>/dev/null || true
+    fi
     
     # Append date to output apk's
     # Cannot do it with ls because it breaks with whitespaces in the filename
@@ -166,23 +179,25 @@ if [ "$1" = "--release" ]; then
     # convert code to amazon-compatible version
     # =========================================
     echo
-    echo "--------------------------"
-    echo "Google-to-Amazon Converter"
-    echo "--------------------------"
-    echo "- working dir: $TMPDIR"
+    echo "------------------------------"
+    echo "Building apk for Amazon market"
+    echo "------------------------------"
+    echo
     
     # Clean temp dir
-    echo "- change to temporary directory"
+    #echo "- change to temporary directory"
     cd $TMP_WORKSPACEDIR  # already created at the beginning
     
-    echo "- copy project"
+    #echo "- copy project"
     cp -pr "$WORKSPACEDIR/"* .
     
     cd "$TMP_PROJECTDIR"
     # ant clean removes bin/ and gen/. Do before replacing market links
     $CMD_ANT clean
-    
-    echo "- searching for Android market id links"
+
+    echo
+    echo "Replacing market:// links with Amazon counterparts"    
+    echo "- searching for market://details?id="
     FILES_TO_UPDATE=$( grep "market://details?id=" * -Rl || true);
     for fn in $FILES_TO_UPDATE; do
       echo
@@ -192,7 +207,7 @@ if [ "$1" = "--release" ]; then
       rm $fn.bak
     done
     
-    echo "- searching for Android market id search links"
+    echo "- searching for market://search?q=pname:"
     FILES_TO_UPDATE=$( grep "market://search?q=pname:" * -Rl || true);
     for fn in $FILES_TO_UPDATE; do
       echo
@@ -202,8 +217,7 @@ if [ "$1" = "--release" ]; then
       rm $fn.bak
     done
     
-    echo
-    echo "- searching for Android market publisher links"
+    echo "- searching for market://search?q=pub:"
     FILES_TO_UPDATE=$( grep "market://search?q=pub:" * -Rl || true);
     for fn in $FILES_TO_UPDATE; do
       echo
@@ -229,7 +243,7 @@ if [ "$1" = "--release" ]; then
       rm build.properties
     fi
     
-    echo "- building amazon apk version"
+    echo "Building Amazon apk now..."
     $CMD_ANT release
     
     # try to delete unaligned apks, if not found don't fail script
