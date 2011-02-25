@@ -1,13 +1,13 @@
 #!/bin/sh
 
 #
-# This script is invoked by jenkins/hudson and performs the 
+# This script is invoked by jenkins/hudson and performs the
 # full Android build process (jenkins calls 'android update
 # project' before invokind this script):
 #
 #   1. checks that the Android project has all files in place
 #   2. builds the current version
-#   3. runs the amazon converter script and build for amazon 
+#   3. runs the amazon converter script and build for amazon
 #   4. appends date to filenames
 #   5. move all apk's into orig_dir/bin for hudson to archive
 #
@@ -17,17 +17,22 @@
 #
 # Optional files:
 #
-#   build.properties (may contain the keystore infos including 
+#   build.properties (may contain the keystore infos including
 #   passwords for alias and key to auto-sign the apk)
-# 
+#
 #   build.xml files are ignored and replaced on hudson with the
 #   most current one from 'android update project'
+#
+#
+# Usage:
+#
+#   build_android_project.sh <WORKSPACE_DIR> [<RELATIVE_PROJECT_PATH>]
 #
 # Author: Chris Hager
 # Date: Feb, 2011
 #
 # Todo:
-# [ ] Amazon build: run zipalign (unsigned packages are not auto-aligned
+# [ ] Amazon build: run zipalign (unsigned packages are not auto-aligned)
 #
 
 set -e # make script fail if one command fails
@@ -55,8 +60,22 @@ if [ $# -lt 1 ]; then
 fi
 
 # readlink converts relative to absolute paths
-PROJECTDIR=$( readlink -f "$1" )
-TMPDIR="/tmp/google_to_amazon/$RANDOM"
+WORKSPACEDIR=$( readlink -f "$1" )  # eg. TicTacToe
+PROJECTDIR=$WORKSPACEDIR
+
+TMP_WORKSPACEDIR="/tmp/google_to_amazon/$RANDOM"
+TMP_PROJECTDIR=$TMP_WORKSPACEDIR
+mkdir -p $TMP_WORKSPACEDIR  # required for readlink to work
+if [ -n "$2" ]; then
+  PROJECTDIR=$( readlink -f "$WORKSPACEDIR/$2" )
+  TMP_PROJECTDIR=$( readlink -f "$TMP_WORKSPACEDIR/$2" )
+fi
+
+echo "workspace: $WORKSPACEDIR"
+echo "project: $PROJECTDIR"
+echo "workspace_tmp: $TMP_WORKSPACEDIR"
+echo "project_tmp: $TMP_PROJECTDIR"
+echo
 
 # make sure default.properties file is there (android min-sdk)
 if [ ! -f "$PROJECTDIR/default.properties" ]; then
@@ -107,21 +126,32 @@ echo "- working dir: $TMPDIR"
 
 # Clean temp dir
 echo "- change to temporary directory"
-mkdir -p $TMPDIR
-cd $TMPDIR
+cd $TMP_WORKSPACEDIR  # already created at the beginning
 
 echo "- copy project"
-cp -pr "$PROJECTDIR/"* .
+cp -pr "$WORKSPACEDIR/"* .
 
+cd "$TMP_PROJECTDIR"
 # ant clean removes bin/ and gen/. Do before replacing market links
 $CMD_ANT clean
 
-echo "- searching for Android market links"
-FILES_TO_UPDATE=$( grep "market://" * -Rl || true);
+echo "- searching for Android market id links"
+FILES_TO_UPDATE=$( grep "market://details?id=" * -Rl || true);
 for fn in $FILES_TO_UPDATE; do
   echo
   echo "Updating $fn"
   $CMD_SED 's/market:\/\/details?id=/http:\/\/www.amazon.com\/gp\/mas\/dl\/android\//g' $fn 
+  diff $fn.bak $fn || true # diff returns 1 if files are not the same (catch with || false)
+  rm $fn.bak
+done
+
+echo
+echo "- searching for Android market publisher links"
+FILES_TO_UPDATE=$( grep "market://search?q=pub:" * -Rl || true);
+for fn in $FILES_TO_UPDATE; do
+  echo
+  echo "Updating $fn"
+  $CMD_SED 's/market:\/\/search?q=pub:/http:\/\/www.amazon.com\/gp\/mas\/dl\/android?showAll=1\&p=/g' $fn 
   diff $fn.bak $fn || true # diff returns 1 if files are not the same (catch with || false)
   rm $fn.bak
 done
@@ -164,4 +194,4 @@ if [ $BUILDXML_CREATED ]; then
 fi
 
 # cleanup temporary directory
-rm -rf $TMPDIR
+rm -rf $TMP_WORKSPACEDIR
