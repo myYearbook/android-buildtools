@@ -173,6 +173,16 @@ if [ $1 == "--release" ]; then
       rm $fn.bak
     done
     
+    echo "- searching for Android market id search links"
+    FILES_TO_UPDATE=$( grep "market://search?q=pname:" * -Rl || true);
+    for fn in $FILES_TO_UPDATE; do
+      echo
+      echo "Updating $fn"
+      $CMD_SED 's/market:\/\/search?q=pname:/http:\/\/www.amazon.com\/gp\/mas\/dl\/android\//g' $fn 
+      diff $fn.bak $fn || true # diff returns 1 if files are not the same (catch with || false)
+      rm $fn.bak
+    done
+    
     echo
     echo "- searching for Android market publisher links"
     FILES_TO_UPDATE=$( grep "market://search?q=pub:" * -Rl || true);
