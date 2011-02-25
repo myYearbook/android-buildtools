@@ -1,22 +1,57 @@
-Common build tools for mobile apps
+This script performs the Android apk build process with 'ant' for both internal 
+releases (signed with a debug key) and external ones (signed with release key 
+for Google, unsigned and with converted market:// links for submission to Amazon).
 
-Android
-=======
+**Usage**
 
-``build_android_project.sh`` is a shell script wrapper for Android's auto-generated build.xml. 
-This script is triggered by hudson on a commit, and can also be run locally.
+    build_android_project.sh <ACTION> <WORKSPACE_DIR> [<RELATIVE_PROJECT_PATH>]
 
-1. Checks project setup
-2. Compiles apk (signed if keystore info is added to build.properties, see TicTacToe)
-3. Runs google-to-amazon converter which adapts source to Amazon requirements (convert
-Android market links to Amazon links) and outputs an unsigned apk
-4. Appends date and time to filenames for archiving in hudson
+    Actions
 
-Setting up a new Hudson/Jenkins Job
------------------------------------
+      --debug ..... build signed apk with debug key 
+      --release ... build signed apk with release key for google, unsigned apk  
+                    for amazon (with replaces market links) 
+    Example Usage
 
-http://confluence.mybdev.com/display/DEVOPS/Setting+up+a+new+project+with+Gerrit+and+Jenkins-Hudson
+      # build project in current directory
+      build_android_project.sh --release .
 
-* For an Android project, go to http://dev02.scs.myyearbook.com:8080/view/5.%20Android/
-* "New Job" -> Enter job name and *set 'copy from' to 'TicTacToe'*
-* Configure the job to your needs
+      # build project in ./source/ which references library in ./lib1/
+      build_android_project.sh --release . source
+
+**Overview**
+
+1. checks that the Android project has all files in place
+2. builds the current version
+3. after building, the apk's are renamed to include 'debug' or 'release'
+   and 'Google' or 'Amazon', as well as the current date and time. The 
+   resulting apk's can be found in bin/
+
+**Amazon Market**
+
+Requires that all ``market://`` links are replaced with links to Amazon's
+website. This script automatically replaces all links and exits with
+an error if there were links that couldn't be converted (which would
+cause Amazon to reject the app submission).
+
+**Required files**
+
+* ``default.properties`` (contains android-version to build for)
+
+**Optional files**
+
+* ``build.properties`` (may contain the keystore infos including
+  passwords for alias and key to auto-sign the apk)
+
+* ``build.xml`` files are ignored and replaced on hudson with the
+  most current one from 'android update project'
+
+
+**License**
+
+New BSD License
+
+**Contributors**
+
+* Chris Hager
+* Joe Hensche
