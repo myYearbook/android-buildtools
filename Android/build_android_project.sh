@@ -26,7 +26,13 @@
 #
 # Usage:
 #
-#   build_android_project.sh <WORKSPACE_DIR> [<RELATIVE_PROJECT_PATH>]
+#   build_android_project.sh OPTIONS <WORKSPACE_DIR> [<RELATIVE_PROJECT_PATH>]
+#
+# Options:
+#
+#   -debug ..... build signed with debug key 
+#   -release ... build signed with release key for google, unsigned for 
+#                amazon with replaces market links 
 #
 # Author: Chris Hager
 # Date: Feb, 2011
@@ -35,7 +41,7 @@
 # [ ] Amazon build: run zipalign (unsigned packages are not auto-aligned)
 #
 
-set -e # make script fail if one command fails
+set -e  # make script fail if one command fails
 
 DATE=$( date +"%Y-%m-%d_%H:%M" )
 
@@ -54,21 +60,21 @@ if [ ${ANT_HOME} ]; then
 fi
 
 # Check for argument
-if [ $# -lt 1 ]; then
-  echo "Use: $0 PROJECT-DIR"
+if [ $# -lt 2 ]; then
+  echo "Use: $0 OPTIONS <WORKSPACE_DIR> [<RELATIVE_PROJECT_DIR>]"
   exit 1
 fi
 
 # readlink converts relative to absolute paths
-WORKSPACEDIR=$( readlink -f "$1" )  # eg. TicTacToe
+WORKSPACEDIR=$( readlink -f "$2" )  # eg. TicTacToe
 PROJECTDIR=$WORKSPACEDIR
 
 TMP_WORKSPACEDIR="/tmp/google_to_amazon/$RANDOM"
 TMP_PROJECTDIR=$TMP_WORKSPACEDIR
 mkdir -p $TMP_WORKSPACEDIR  # required for readlink to work
-if [ -n "$2" ]; then
-  PROJECTDIR=$( readlink -f "$WORKSPACEDIR/$2" )
-  TMP_PROJECTDIR=$( readlink -f "$TMP_WORKSPACEDIR/$2" )
+if [ -n "$3" ]; then
+  PROJECTDIR=$( readlink -f "$WORKSPACEDIR/$3" )
+  TMP_PROJECTDIR=$( readlink -f "$TMP_WORKSPACEDIR/$3" )
 fi
 
 echo "workspace: $WORKSPACEDIR"
@@ -100,92 +106,115 @@ fi
 # ====================================
 # build normal android version (debug)
 # ====================================
-cd "$PROJECTDIR"
-$CMD_ANT clean release
-
-# try to delete unaligned apks, if not found don't fail script
-rm bin/*-unaligned.apk 2>/dev/null || true
-
-# Append date to output apk's
-# Cannot do it with ls because it breaks with whitespaces in the filename
-cd bin
-find ./ -name "*.apk" -print0 | while read -d $'\0' fn
-do
-  FN_NEW=$( echo "$fn" | sed "s/.apk/-google-$DATE.apk/g" ) # $CMD_SED only works on files
-  mv "$fn" "$FN_NEW"
-done
-
-# =========================================
-# convert code to amazon-compatible version
-# =========================================
-echo
-echo "--------------------------"
-echo "Google-to-Amazon Converter"
-echo "--------------------------"
-echo "- working dir: $TMPDIR"
-
-# Clean temp dir
-echo "- change to temporary directory"
-cd $TMP_WORKSPACEDIR  # already created at the beginning
-
-echo "- copy project"
-cp -pr "$WORKSPACEDIR/"* .
-
-cd "$TMP_PROJECTDIR"
-# ant clean removes bin/ and gen/. Do before replacing market links
-$CMD_ANT clean
-
-echo "- searching for Android market id links"
-FILES_TO_UPDATE=$( grep "market://details?id=" * -Rl || true);
-for fn in $FILES_TO_UPDATE; do
-  echo
-  echo "Updating $fn"
-  $CMD_SED 's/market:\/\/details?id=/http:\/\/www.amazon.com\/gp\/mas\/dl\/android\//g' $fn 
-  diff $fn.bak $fn || true # diff returns 1 if files are not the same (catch with || false)
-  rm $fn.bak
-done
-
-echo
-echo "- searching for Android market publisher links"
-FILES_TO_UPDATE=$( grep "market://search?q=pub:" * -Rl || true);
-for fn in $FILES_TO_UPDATE; do
-  echo
-  echo "Updating $fn"
-  $CMD_SED 's/market:\/\/search?q=pub:/http:\/\/www.amazon.com\/gp\/mas\/dl\/android?showAll=1\&p=/g' $fn 
-  diff $fn.bak $fn || true # diff returns 1 if files are not the same (catch with || false)
-  rm $fn.bak
-done
-
-echo
-
-# Make sure all links were updated and none left (because of other format, etc)
-# If links are left over, fail!
-FILES_TO_UPDATE=$( grep "market://" * -Rl || true )
-if [ $FILES_TO_UPDATE ]; then
-  echo "Error: Could not convert all market:// links to amazon market links. Files:"
-  grep "market://" src/* -RHn
-  exit 1
+if [ $1 == "--debug" ]; then
+    cd "$PROJECTDIR"
+    $CMD_ANT clean debug
+    
+    # try to delete unaligned apks, if not found don't fail script
+    rm bin/*-unaligned.apk 2>/dev/null || true
+    
+    # Append date to output apk's
+    # Cannot do it with ls because it breaks with whitespaces in the filename
+    cd bin
+    find ./ -name "*.apk" -print0 | while read -d $'\0' fn
+    do
+      FN_NEW=$( echo "$fn" | sed "s/.apk/-google-$DATE.apk/g" ) # $CMD_SED only works on files
+      mv "$fn" "$FN_NEW"
+    done
 fi
 
-# Amazon market needs only unsigned apk's. remove build.properties
-if [ -f build.properties ]; then
-  rm build.properties
+# =============================
+# build release android version
+# =============================
+if [ $1 == "--release" ]; then
+    cd "$PROJECTDIR"
+    $CMD_ANT clean release
+    
+    # try to delete unaligned apks, if not found don't fail script
+    rm bin/*-unaligned.apk 2>/dev/null || true
+    rm bin/*-unsigned.apk 2>/dev/null || true
+    
+    # Append date to output apk's
+    # Cannot do it with ls because it breaks with whitespaces in the filename
+    cd bin
+    find ./ -name "*.apk" -print0 | while read -d $'\0' fn
+    do
+      FN_NEW=$( echo "$fn" | sed "s/.apk/-google-$DATE.apk/g" ) # $CMD_SED only works on files
+      mv "$fn" "$FN_NEW"
+    done
+
+    # =========================================
+    # convert code to amazon-compatible version
+    # =========================================
+    echo
+    echo "--------------------------"
+    echo "Google-to-Amazon Converter"
+    echo "--------------------------"
+    echo "- working dir: $TMPDIR"
+    
+    # Clean temp dir
+    echo "- change to temporary directory"
+    cd $TMP_WORKSPACEDIR  # already created at the beginning
+    
+    echo "- copy project"
+    cp -pr "$WORKSPACEDIR/"* .
+    
+    cd "$TMP_PROJECTDIR"
+    # ant clean removes bin/ and gen/. Do before replacing market links
+    $CMD_ANT clean
+    
+    echo "- searching for Android market id links"
+    FILES_TO_UPDATE=$( grep "market://details?id=" * -Rl || true);
+    for fn in $FILES_TO_UPDATE; do
+      echo
+      echo "Updating $fn"
+      $CMD_SED 's/market:\/\/details?id=/http:\/\/www.amazon.com\/gp\/mas\/dl\/android\//g' $fn 
+      diff $fn.bak $fn || true # diff returns 1 if files are not the same (catch with || false)
+      rm $fn.bak
+    done
+    
+    echo
+    echo "- searching for Android market publisher links"
+    FILES_TO_UPDATE=$( grep "market://search?q=pub:" * -Rl || true);
+    for fn in $FILES_TO_UPDATE; do
+      echo
+      echo "Updating $fn"
+      $CMD_SED 's/market:\/\/search?q=pub:/http:\/\/www.amazon.com\/gp\/mas\/dl\/android?showAll=1\&p=/g' $fn 
+      diff $fn.bak $fn || true # diff returns 1 if files are not the same (catch with || false)
+      rm $fn.bak
+    done
+    
+    echo
+    
+    # Make sure all links were updated and none left (because of other format, etc)
+    # If links are left over, fail!
+    FILES_TO_UPDATE=$( grep "market://" * -Rl || true )
+    if [ $FILES_TO_UPDATE ]; then
+      echo "Error: Could not convert all market:// links to amazon market links. Files:"
+      grep "market://" src/* -RHn
+      exit 1
+    fi
+    
+    # Amazon market needs only unsigned apk's. remove build.properties
+    if [ -f build.properties ]; then
+      rm build.properties
+    fi
+    
+    echo "- building amazon apk version"
+    $CMD_ANT release
+    
+    # try to delete unaligned apks, if not found don't fail script
+    rm bin/*-unaligned.apk 2>/dev/null || true
+    
+    # Append date to output apk's
+    # Cannot do it with ls because it breaks with whitespaces in the filename
+    cd bin
+    find ./ -name "*.apk" -print0 | while read -d $'\0' fn
+    do
+      FN_NEW=$( echo "$fn" | sed "s/.apk/-amazon-$DATE.apk/g" )
+      mv "$fn" "$PROJECTDIR/bin/$FN_NEW"
+    done
 fi
-
-echo "- building amazon apk version"
-$CMD_ANT release
-
-# try to delete unaligned apks, if not found don't fail script
-rm bin/*-unaligned.apk 2>/dev/null || true
-
-# Append date to output apk's
-# Cannot do it with ls because it breaks with whitespaces in the filename
-cd bin
-find ./ -name "*.apk" -print0 | while read -d $'\0' fn
-do
-  FN_NEW=$( echo "$fn" | sed "s/.apk/-amazon-$DATE.apk/g" )
-  mv "$fn" "$PROJECTDIR/bin/$FN_NEW"
-done
 
 # cleanup temporary files created by 'android update project'
 if [ $BUILDXML_CREATED ]; then
